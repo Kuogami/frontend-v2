@@ -49,9 +49,10 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 
-// 在 AI 助手页面隐藏悬浮按钮
+// 仅在景点浏览和路线规划页面显示悬浮按钮
 const shouldShowFab = computed(() => {
-  return route.path !== '/ai-assistant'
+  const allowedPaths = ['/attractions', '/route']
+  return allowedPaths.includes(route.path)
 })
 
 // 切换面板

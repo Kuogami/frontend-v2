@@ -32,3 +32,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Safe area support for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Ensure inputs are not covered by virtual keyboards */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .input-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
