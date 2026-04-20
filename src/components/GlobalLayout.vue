@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import NavBar from './NavBar.vue'
+import GlobalAIAssistant from './GlobalAIAssistant.vue'
 
 const currentYear = new Date().getFullYear()
 </script>
@@ -9,6 +10,9 @@ const currentYear = new Date().getFullYear()
   <div class="min-h-screen flex flex-col bg-[var(--color-background)]">
     <!-- 置顶毛玻璃导航栏 -->
     <NavBar />
+    
+    <!-- 全局 AI 助手悬浮组件 -->
+    <GlobalAIAssistant />
     
     <!-- 主内容区域 -->
     <main class="flex-1 pt-20">

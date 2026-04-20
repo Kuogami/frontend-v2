@@ -1,89 +1,60 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { Bot, Send, User, Sparkles, MapPin, Calendar, Utensils } from 'lucide-vue-next'
+import { onMounted } from 'vue'
+import { Bot, Send, User, Sparkles, MapPin, Calendar, Utensils, Trash2 } from 'lucide-vue-next'
+import { useAIAssistant } from '../composables/useAIAssistant'
 
-interface Message {
-  id: number
-  role: 'user' | 'assistant'
-  content: string
-  time: string
+const {
+  messages,
+  inputMessage,
+  isTyping,
+  chatContainer,
+  quickActions,
+  sendMessage,
+  handleQuickAction,
+  clearMessages,
+  scrollToBottom,
+} = useAIAssistant()
+
+// 图标组件映射
+const iconComponents: Record<string, typeof MapPin> = {
+  MapPin,
+  Calendar,
+  Utensils,
 }
 
-const messages = ref<Message[]>([
-  {
-    id: 1,
-    role: 'assistant',
-    content: '您好！我是您的智能旅行助手。我可以帮您规划旅行路线、推荐景点美食、解答旅行相关问题。请问有什么可以帮您的吗？',
-    time: '10:00',
-  },
-])
+onMounted(() => {
+  scrollToBottom()
+})
 
-const inputMessage = ref('')
-const chatContainer = ref<HTMLElement | null>(null)
-
-const quickActions = [
-  { icon: MapPin, label: '推荐景点', prompt: '请推荐一些北京必去的景点' },
-  { icon: Calendar, label: '行程规划', prompt: '帮我规划一个三日游行程' },
-  { icon: Utensils, label: '美食推荐', prompt: '推荐一些当地特色美食' },
-]
-
-const sendMessage = async () => {
-  if (!inputMessage.value.trim()) return
-  
-  const userMessage: Message = {
-    id: Date.now(),
-    role: 'user',
-    content: inputMessage.value,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-  }
-  
-  messages.value.push(userMessage)
-  inputMessage.value = ''
-  
-  // 滚动到底部
-  await nextTick()
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-  }
-  
-  // 模拟 AI 回复
-  setTimeout(async () => {
-    const aiMessage: Message = {
-      id: Date.now(),
-      role: 'assistant',
-      content: '感谢您的提问！作为您的旅行助手，我建议您可以考虑以下几点：\n\n1. 根据您的时间安排，合理规划每日行程\n2. 提前预订热门景点的门票\n3. 了解当地的天气情况，做好相应准备\n\n如果您能告诉我更多关于您的旅行偏好，我可以为您提供更个性化的建议。',
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    }
-    messages.value.push(aiMessage)
-    
-    await nextTick()
-    if (chatContainer.value) {
-      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-    }
-  }, 1000)
-}
-
-const handleQuickAction = (prompt: string) => {
-  inputMessage.value = prompt
+const handleSend = () => {
   sendMessage()
 }
 </script>
 
 <template>
   <div class="w-full max-w-3xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(147,177,207,0.12)] overflow-hidden flex flex-col h-[70vh]">
+    <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_2px_12px_rgba(147,177,207,0.12)] border border-white/50 overflow-hidden flex flex-col h-[75vh]">
       <!-- 头部 -->
-      <div class="p-5 border-b border-sky-100 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-500 flex items-center justify-center shadow-md shadow-sky-200">
-          <Bot class="w-5 h-5 text-white" />
+      <div class="p-5 border-b border-sky-100/50 flex items-center justify-between bg-gradient-to-r from-sky-50/50 to-white/50">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00A3FF] to-sky-400 flex items-center justify-center shadow-lg shadow-sky-200">
+            <Bot class="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-[var(--color-carbon)] text-lg">AI 旅行助手</h2>
+            <p class="text-sm text-[var(--color-carbon-light)] flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              在线 - 随时为您服务
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 class="font-medium text-carbon">AI 旅行助手</h2>
-          <p class="text-xs text-carbon-light flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            在线
-          </p>
-        </div>
+        <button
+          @click="clearMessages"
+          class="p-2.5 rounded-xl hover:bg-red-50 text-[var(--color-carbon-light)] hover:text-red-500 transition-colors"
+          title="清空对话"
+        >
+          <Trash2 class="w-5 h-5" />
+        </button>
       </div>
       
       <!-- 消息区域 -->
@@ -99,10 +70,10 @@ const handleQuickAction = (prompt: string) => {
           <!-- 头像 -->
           <div
             :class="[
-              'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0',
+              'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0',
               message.role === 'assistant' 
-                ? 'bg-gradient-to-br from-sky-400 to-sky-500' 
-                : 'bg-carbon'
+                ? 'bg-gradient-to-br from-[#00A3FF] to-sky-400' 
+                : 'bg-[var(--color-carbon)]'
             ]"
           >
             <Bot v-if="message.role === 'assistant'" class="w-4 h-4 text-white" />
@@ -114,56 +85,70 @@ const handleQuickAction = (prompt: string) => {
             :class="[
               'max-w-[80%] p-4 rounded-2xl',
               message.role === 'assistant' 
-                ? 'bg-sky-50 text-carbon rounded-tl-md' 
-                : 'bg-sky-primary text-white rounded-tr-md'
+                ? 'bg-sky-50/80 text-[var(--color-carbon)] rounded-tl-md' 
+                : 'bg-[#00A3FF] text-white rounded-tr-md'
             ]"
           >
             <p class="text-sm whitespace-pre-wrap leading-relaxed">{{ message.content }}</p>
             <p 
               :class="[
                 'text-xs mt-2',
-                message.role === 'assistant' ? 'text-carbon-light' : 'text-white/70'
+                message.role === 'assistant' ? 'text-[var(--color-carbon-light)]' : 'text-white/70'
               ]"
             >
               {{ message.time }}
             </p>
           </div>
         </div>
+
+        <!-- 输入中提示 -->
+        <div v-if="isTyping" class="flex gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00A3FF] to-sky-400 flex items-center justify-center flex-shrink-0">
+            <Bot class="w-4 h-4 text-white" />
+          </div>
+          <div class="bg-sky-50/80 p-4 rounded-2xl rounded-tl-md">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 bg-[#00A3FF] rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-2.5 h-2.5 bg-[#00A3FF] rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-2.5 h-2.5 bg-[#00A3FF] rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- 快捷操作 -->
-      <div class="px-5 py-3 border-t border-sky-100 flex items-center gap-2">
-        <Sparkles class="w-4 h-4 text-sky-primary flex-shrink-0" />
-        <div class="flex items-center gap-2 overflow-x-auto">
+      <div class="px-5 py-3 border-t border-sky-100/50 flex items-center gap-2 bg-white/50">
+        <Sparkles class="w-4 h-4 text-[#00A3FF] flex-shrink-0" />
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <button
             v-for="action in quickActions"
             :key="action.label"
             @click="handleQuickAction(action.prompt)"
-            class="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-primary text-xs font-medium rounded-full hover:bg-sky-100 transition-colors whitespace-nowrap"
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-[#00A3FF] text-xs font-medium rounded-full hover:bg-sky-100 transition-colors whitespace-nowrap"
           >
-            <component :is="action.icon" class="w-3 h-3" />
+            <component :is="iconComponents[action.icon]" class="w-3 h-3" />
             {{ action.label }}
           </button>
         </div>
       </div>
       
       <!-- 输入区域 -->
-      <div class="p-4 border-t border-sky-100">
+      <div class="p-4 border-t border-sky-100/50 bg-white/50">
         <div class="flex items-center gap-3">
           <input
             v-model="inputMessage"
-            @keyup.enter="sendMessage"
+            @keyup.enter="handleSend"
             type="text"
             placeholder="输入您的问题..."
-            class="flex-1 px-4 py-3 bg-sky-50/60 rounded-xl text-carbon placeholder:text-carbon-light/60 outline-none focus:ring-2 focus:ring-sky-primary/20 transition-all"
+            class="flex-1 px-4 py-3 bg-sky-50/60 rounded-xl text-[var(--color-carbon)] placeholder:text-[var(--color-carbon-light)]/60 outline-none focus:ring-2 focus:ring-[#00A3FF]/20 transition-all"
           />
           <button
-            @click="sendMessage"
+            @click="handleSend"
             :disabled="!inputMessage.trim()"
             :class="[
               'p-3 rounded-xl transition-all',
               inputMessage.trim() 
-                ? 'bg-sky-primary text-white hover:bg-sky-primary/90 shadow-md shadow-sky-200' 
+                ? 'bg-[#00A3FF] text-white hover:bg-[#00A3FF]/90 shadow-md shadow-sky-200' 
                 : 'bg-sky-100 text-sky-300 cursor-not-allowed'
             ]"
           >
@@ -174,3 +159,13 @@ const handleQuickAction = (prompt: string) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+</style>
