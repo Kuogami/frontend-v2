@@ -3,6 +3,10 @@ import HomePage from '../pages/HomePage.vue'
 import AttractionsPage from '../pages/AttractionsPage.vue'
 import RoutePlanPage from '../pages/RoutePlanPage.vue'
 import AIAssistantPage from '../pages/AIAssistantPage.vue'
+import LoginPage from '../pages/LoginPage.vue'
+import ProfilePage from '../pages/ProfilePage.vue'
+import FavoritesPage from '../pages/FavoritesPage.vue'
+import HistoryPage from '../pages/HistoryPage.vue'
 
 const routes = [
   {
@@ -24,6 +28,26 @@ const routes = [
     path: '/ai-assistant',
     name: 'ai-assistant',
     component: AIAssistantPage,
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginPage,
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: ProfilePage,
+  },
+  {
+    path: '/favorites',
+    name: 'favorites',
+    component: FavoritesPage,
+  },
+  {
+    path: '/history',
+    name: 'history',
+    component: HistoryPage,
   },
 ]
 

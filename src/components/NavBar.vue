@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { Home, MapPin, Route, Bot, Menu, X, ChevronDown } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Home, MapPin, Route, Bot, Menu, X, ChevronDown, User, Heart, MapPinned, LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const isMenuOpen = ref(false)
 const isLoggedIn = ref(false)
 const isDropdownOpen = ref(false)
@@ -13,6 +14,12 @@ const navItems = [
   { name: '景点浏览', icon: MapPin, path: '/attractions' },
   { name: '路线规划', icon: Route, path: '/route' },
   { name: 'AI 助手', icon: Bot, path: '/ai-assistant' },
+]
+
+const dropdownItems = [
+  { name: '个人中心', icon: User, path: '/profile' },
+  { name: '我的收藏', icon: Heart, path: '/favorites' },
+  { name: '旅行记录', icon: MapPinned, path: '/history' },
 ]
 
 // 判断当前路由是否激活
@@ -31,15 +38,38 @@ const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value
 }
 
-const handleLogin = () => {
-  isLoggedIn.value = true
+const closeDropdown = () => {
   isDropdownOpen.value = false
+}
+
+const handleLogin = () => {
+  router.push('/login')
 }
 
 const handleLogout = () => {
   isLoggedIn.value = false
   isDropdownOpen.value = false
+  router.push('/')
 }
+
+const navigateTo = (path: string) => {
+  router.push(path)
+  isDropdownOpen.value = false
+  isMenuOpen.value = false
+}
+
+// 模拟登录状态变化（实际项目中应该从状态管理获取）
+// 这里简单模拟：访问登录页后设为已登录
+const checkLoginStatus = () => {
+  // 模拟已登录状态，方便演示
+  isLoggedIn.value = localStorage.getItem('isLoggedIn') === 'true'
+}
+
+// 监听路由变化关闭下拉菜单
+router.afterEach(() => {
+  isDropdownOpen.value = false
+  isMenuOpen.value = false
+})
 </script>
 
 <template>
@@ -120,21 +150,22 @@ const handleLogout = () => {
                     <p class="text-sm font-medium text-[var(--color-carbon)]">旅行者</p>
                     <p class="text-xs text-[var(--color-carbon-light)]">traveler@example.com</p>
                   </div>
-                  <a href="#" class="block px-4 py-2.5 text-sm text-[var(--color-carbon-light)] hover:text-[var(--color-carbon)] hover:bg-sky-50 transition-colors">
-                    个人中心
-                  </a>
-                  <a href="#" class="block px-4 py-2.5 text-sm text-[var(--color-carbon-light)] hover:text-[var(--color-carbon)] hover:bg-sky-50 transition-colors">
-                    我的收藏
-                  </a>
-                  <a href="#" class="block px-4 py-2.5 text-sm text-[var(--color-carbon-light)] hover:text-[var(--color-carbon)] hover:bg-sky-50 transition-colors">
-                    旅行记录
-                  </a>
+                  <button
+                    v-for="item in dropdownItems"
+                    :key="item.name"
+                    @click="navigateTo(item.path)"
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-carbon-light)] hover:text-[var(--color-carbon)] hover:bg-sky-50 transition-colors text-left"
+                  >
+                    <component :is="item.icon" class="w-4 h-4" />
+                    <span>{{ item.name }}</span>
+                  </button>
                   <div class="border-t border-[var(--color-border-light)] mt-2 pt-2">
                     <button
                       @click="handleLogout"
-                      class="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
                     >
-                      退出登录
+                      <LogOut class="w-4 h-4" />
+                      <span>退出登录</span>
                     </button>
                   </div>
                 </div>
@@ -182,9 +213,30 @@ const handleLogout = () => {
               <component :is="item.icon" class="w-5 h-5" :stroke-width="1.75" />
               <span>{{ item.name }}</span>
             </RouterLink>
+
+            <!-- 移动端已登录时显示的菜单项 -->
+            <template v-if="isLoggedIn">
+              <div class="border-t border-[var(--color-border-light)] my-3"></div>
+              <button
+                v-for="item in dropdownItems"
+                :key="item.name"
+                @click="navigateTo(item.path)"
+                class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--color-carbon-light)] hover:text-[var(--color-carbon)] hover:bg-sky-50/50 transition-all duration-200 text-left"
+              >
+                <component :is="item.icon" class="w-5 h-5" :stroke-width="1.75" />
+                <span>{{ item.name }}</span>
+              </button>
+            </template>
           </div>
         </div>
       </Transition>
     </nav>
   </header>
+
+  <!-- 点击遮罩关闭下拉菜单 -->
+  <div
+    v-if="isDropdownOpen"
+    @click="closeDropdown"
+    class="fixed inset-0 z-40"
+  ></div>
 </template>
