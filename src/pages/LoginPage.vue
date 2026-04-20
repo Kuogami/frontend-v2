@@ -2,8 +2,10 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, User } from 'lucide-vue-next'
+import { useUser } from '../composables/useUser'
 
 const router = useRouter()
+const { login } = useUser()
 
 // 切换登录/注册模式
 const isLoginMode = ref(true)
