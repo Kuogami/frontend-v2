@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { 
   MapPin, 
   Navigation, 
@@ -38,6 +38,9 @@ const rippleEffect = ref<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, 
 
 // 地图中心坐标（模拟）
 const mapCenter = ref({ x: 50, y: 50 })
+
+// 路线绘制是否完成
+const routeDrawn = ref(false)
 
 // 地图标记点位置
 const markers = computed(() => {
@@ -165,7 +168,12 @@ const togglePanelCollapse = () => {
   isPanelCollapsed.value = !isPanelCollapsed.value
 }
 
-// 地图点击直接选点（移除弹窗确认）
+// 展开面板（用于把手点击）
+const expandPanel = () => {
+  isPanelCollapsed.value = false
+}
+
+// 地图点击直接选点（点击即确认，无弹窗）
 const handleMapClick = (event: MouseEvent) => {
   if (pickingMode.value === 'none') return
   
@@ -180,7 +188,7 @@ const handleMapClick = (event: MouseEvent) => {
     rippleEffect.value.show = false
   }, 600)
   
-  // 回填坐标到输入框
+  // 立即回填坐标到输入框
   if (pickingMode.value === 'start') {
     startPoint.value = `选定位置 (${x.toFixed(1)}, ${y.toFixed(1)})`
   } else if (pickingMode.value === 'end') {
@@ -190,9 +198,11 @@ const handleMapClick = (event: MouseEvent) => {
   // 移动地图中心
   animateMapTo(x, y)
   
-  // 退出选点模式并展开面板
+  // 退出选点模式并自动展开面板（带动画延迟）
   pickingMode.value = 'none'
-  isPanelCollapsed.value = false
+  setTimeout(() => {
+    isPanelCollapsed.value = false
+  }, 200)
 }
 
 // 使用当前位置
@@ -209,6 +219,7 @@ const useCurrentLocation = (type: 'start' | 'end') => {
 const startNavigation = () => {
   isNavigating.value = true
   routeProgress.value = 0
+  routeDrawn.value = false
   
   // 移动端自动展开抽屉
   if (window.innerWidth < 768) {
@@ -220,6 +231,8 @@ const startNavigation = () => {
     if (routeProgress.value < 100) {
       routeProgress.value += 1
       setTimeout(animateRoute, 30)
+    } else {
+      routeDrawn.value = true
     }
   }
   animateRoute()
@@ -229,6 +242,7 @@ const startNavigation = () => {
 const stopNavigation = () => {
   isNavigating.value = false
   routeProgress.value = 0
+  routeDrawn.value = false
 }
 
 const toggleDrawer = () => {
@@ -252,10 +266,12 @@ const expandDrawer = () => {
 
 <template>
   <div class="relative w-full h-[calc(100vh-80px)] overflow-hidden">
-    <!-- 全屏地图背景层 -->
+    <!-- 全屏地图背景层（可点击选点） -->
     <div 
       class="absolute inset-0 bg-gradient-to-br from-sky-100 via-sky-50 to-blue-100 transition-transform duration-500"
+      :class="{ 'cursor-crosshair': pickingMode !== 'none' }"
       :style="{ transform: `translate(${50 - mapCenter.x}%, ${50 - mapCenter.y}%) scale(1.2)` }"
+      @click="handleMapClick"
     >
       <!-- 模拟地图网格 -->
       <div class="absolute inset-0 opacity-30">
@@ -267,6 +283,16 @@ const expandDrawer = () => {
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
         </svg>
+      </div>
+      
+      <!-- 涟漪效果 -->
+      <div 
+        v-if="rippleEffect.show"
+        class="absolute w-16 h-16 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        :style="{ left: rippleEffect.x + '%', top: rippleEffect.y + '%' }"
+      >
+        <div class="w-full h-full rounded-full bg-sky-400/40 animate-ripple"></div>
+        <div class="absolute inset-0 rounded-full bg-sky-400/30 animate-ripple-delay"></div>
       </div>
       
       <!-- 地图标记点 - 起点 -->
@@ -306,13 +332,30 @@ const expandDrawer = () => {
       <!-- 导航路线 SVG -->
       <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <!-- 流光渐变 -->
+          <!-- 流光渐变 - 增强版 -->
           <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="transparent" />
-            <stop offset="40%" stop-color="white" />
-            <stop offset="60%" stop-color="white" />
-            <stop offset="100%" stop-color="transparent" />
+            <stop offset="0%" stop-color="transparent">
+              <animate attributeName="offset" values="0;1" dur="2s" repeatCount="indefinite" />
+            </stop>
+            <stop offset="20%" stop-color="rgba(255,255,255,0.9)">
+              <animate attributeName="offset" values="0.2;1.2" dur="2s" repeatCount="indefinite" />
+            </stop>
+            <stop offset="30%" stop-color="rgba(255,255,255,0.9)">
+              <animate attributeName="offset" values="0.3;1.3" dur="2s" repeatCount="indefinite" />
+            </stop>
+            <stop offset="50%" stop-color="transparent">
+              <animate attributeName="offset" values="0.5;1.5" dur="2s" repeatCount="indefinite" />
+            </stop>
           </linearGradient>
+          
+          <!-- 发光滤镜 -->
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
           
           <!-- 路线裁剪蒙版 -->
           <mask id="routeMask">
@@ -328,13 +371,27 @@ const expandDrawer = () => {
           </mask>
         </defs>
         
-        <!-- 底层路线（半透明天蓝色粗线） -->
+        <!-- 底层路线阴影 -->
         <path 
           v-if="isNavigating"
           :d="routePath"
           fill="none" 
-          stroke="rgba(14, 165, 233, 0.5)" 
-          stroke-width="8"
+          stroke="rgba(14, 165, 233, 0.3)" 
+          stroke-width="16"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          :stroke-dasharray="`${routeProgress * 10} 10000`"
+          class="transition-all duration-100"
+          filter="url(#glow)"
+        />
+        
+        <!-- 主路线（天蓝色） -->
+        <path 
+          v-if="isNavigating"
+          :d="routePath"
+          fill="none" 
+          stroke="#00A3FF" 
+          stroke-width="6"
           stroke-linecap="round"
           stroke-linejoin="round"
           :stroke-dasharray="`${routeProgress * 10} 10000`"
@@ -342,15 +399,26 @@ const expandDrawer = () => {
         />
         
         <!-- 流光效果层 -->
-        <g v-if="isNavigating && routeProgress > 10" mask="url(#routeMask)">
+        <g v-if="isNavigating && routeDrawn" mask="url(#routeMask)">
+          <!-- 流光线条 -->
           <path 
             :d="routePath"
             fill="none" 
             stroke="url(#flowGradient)" 
-            stroke-width="3"
+            stroke-width="4"
             stroke-linecap="round"
-            class="animate-flow"
+            class="animate-flow-light"
           />
+          <!-- 粒子光点效果 -->
+          <circle class="animate-particle-1" r="4" fill="white" filter="url(#glow)">
+            <animateMotion :path="routePath" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <circle class="animate-particle-2" r="3" fill="rgba(255,255,255,0.7)" filter="url(#glow)">
+            <animateMotion :path="routePath" dur="3s" begin="1s" repeatCount="indefinite" />
+          </circle>
+          <circle class="animate-particle-3" r="2" fill="rgba(255,255,255,0.5)" filter="url(#glow)">
+            <animateMotion :path="routePath" dur="3s" begin="2s" repeatCount="indefinite" />
+          </circle>
         </g>
         
         <!-- 未导航时的虚线预览 -->
@@ -367,75 +435,31 @@ const expandDrawer = () => {
       </svg>
     </div>
 
-    <!-- 选点模式蒙层 -->
-    <div 
-      v-if="pickingMode !== 'none'"
-      class="absolute inset-0 bg-black/10 z-40 flex items-center justify-center"
-    >
-      <!-- 地图中央跳动的大头针 -->
-      <div class="relative">
-        <!-- 大头针主体 -->
-        <div class="animate-bounce-slow">
-          <div class="relative">
-            <!-- 针尖阴影 -->
-            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-2 bg-black/15 rounded-full blur-sm"></div>
-            <!-- 大头针图标 -->
-            <div class="w-14 h-14 rounded-full bg-gradient-to-b from-sky-400 to-sky-500 flex items-center justify-center text-white shadow-xl shadow-sky-300/50 ring-4 ring-white/50">
-              <MapPin class="w-7 h-7" />
-            </div>
-            <!-- 针尖 -->
-            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-sky-500"></div>
+    <!-- 选点模式提示（精简版，无弹窗） -->
+    <Transition name="fade">
+      <div 
+        v-if="pickingMode !== 'none'"
+        class="absolute top-6 left-1/2 -translate-x-1/2 z-50"
+      >
+        <div class="px-6 py-3 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/50 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center animate-pulse">
+            <MapPin class="w-5 h-5 text-sky-500" />
           </div>
-        </div>
-        
-        <!-- 脉冲光圈效果 -->
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border-2 border-sky-400/50 animate-ping-slow"></div>
-      </div>
-      
-      <!-- 底部 Apple 风格悬浮卡片 -->
-      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md">
-        <div class="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] p-5 border border-white/50">
-          <!-- 提示标题 -->
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center">
-              <MapPin class="w-5 h-5 text-sky-500" />
-            </div>
-            <div>
-              <h3 class="text-base font-semibold text-carbon">
-                {{ pickingMode === 'start' ? '选择起点' : '选择终点' }}
-              </h3>
-              <p class="text-xs text-carbon-light mt-0.5">请将大头针移动到地图上所需位置，或直接点击地图</p>
-            </div>
+          <div>
+            <h3 class="text-sm font-semibold text-carbon">
+              {{ pickingMode === 'start' ? '选择起点' : '选择终点' }}
+            </h3>
+            <p class="text-xs text-carbon-light">点击地图任意位置即可选定</p>
           </div>
-          
-          <!-- 当前坐标显示 -->
-          <div class="bg-sky-50/80 rounded-xl px-4 py-3 mb-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-carbon-light">当前位置坐标</span>
-              <span class="text-sm font-mono text-sky-600">
-                {{ mapCenter.x.toFixed(2) }}, {{ mapCenter.y.toFixed(2) }}
-              </span>
-            </div>
-          </div>
-          
-          <!-- 操作按钮 -->
-          <div class="flex gap-3">
-            <button 
-              @click="cancelPick"
-              class="flex-1 py-3 bg-gray-100 text-carbon font-medium rounded-xl hover:bg-gray-200 transition-colors active:scale-[0.98]"
-            >
-              取消
-            </button>
-            <button 
-              @click="confirmPick"
-              class="flex-1 py-3 bg-sky-500 text-white font-medium rounded-xl shadow-lg shadow-sky-200/50 hover:bg-sky-600 transition-all active:scale-[0.98]"
-            >
-              确认选点
-            </button>
-          </div>
+          <button 
+            @click="pickingMode = 'none'; isPanelCollapsed = false"
+            class="ml-2 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <X class="w-4 h-4 text-carbon-light" />
+          </button>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- 桌面端：左侧浮动面板 -->
     <div 
@@ -445,17 +469,14 @@ const expandDrawer = () => {
       ]"
       style="width: 420px;"
     >
-      <!-- 折叠/展开按钮（半圆形毛玻璃按钮） -->
+      <!-- 折叠按钮（面板内侧） -->
       <button
+        v-if="!isPanelCollapsed"
         @click="togglePanelCollapse"
-        :class="[
-          'absolute top-1/2 -translate-y-1/2 w-6 h-14 bg-white/90 backdrop-blur-md flex items-center justify-center rounded-r-full shadow-lg transition-all duration-300 hover:bg-white hover:w-7 z-50',
-          isPanelCollapsed ? '-right-6' : '-right-3'
-        ]"
+        class="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-14 bg-white/90 backdrop-blur-md flex items-center justify-center rounded-r-full shadow-lg transition-all duration-300 hover:bg-white hover:w-7 z-50"
         style="border: 1px solid rgba(147, 177, 207, 0.2); border-left: none;"
       >
-        <ChevronLeft v-if="!isPanelCollapsed" class="w-4 h-4 text-sky-500" />
-        <ChevronRight v-else class="w-4 h-4 text-sky-500" />
+        <ChevronLeft class="w-4 h-4 text-sky-500" />
       </button>
 
       <div class="h-full flex flex-col">
@@ -685,6 +706,18 @@ const expandDrawer = () => {
       </div>
     </div>
 
+    <!-- 桌面端：常驻把手（面板折叠时显示） -->
+    <Transition name="slide-handle">
+      <button
+        v-if="isPanelCollapsed"
+        @click="expandPanel"
+        class="hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-40 w-8 h-20 bg-white/70 backdrop-blur-xl items-center justify-center rounded-r-2xl shadow-[4px_0_16px_rgba(147,177,207,0.25)] hover:bg-white/90 hover:w-10 transition-all duration-300 group"
+        style="border: 1px solid rgba(147, 177, 207, 0.2); border-left: none;"
+      >
+        <ChevronRight class="w-5 h-5 text-sky-500 group-hover:translate-x-0.5 transition-transform" />
+      </button>
+    </Transition>
+
     <!-- 移动端：底部抽屉 -->
     <div 
       :class="[
@@ -907,19 +940,44 @@ const expandDrawer = () => {
 </template>
 
 <style scoped>
-/* 流光动画 */
-@keyframes flow {
+/* 流光动画 - 增强版 */
+@keyframes flow-light {
   0% {
     stroke-dashoffset: 200;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
   }
   100% {
     stroke-dashoffset: 0;
+    opacity: 0.8;
   }
 }
 
-.animate-flow {
-  stroke-dasharray: 50 150;
-  animation: flow 2s linear infinite;
+.animate-flow-light {
+  stroke-dasharray: 30 170;
+  animation: flow-light 2s ease-in-out infinite;
+}
+
+/* 涟漪效果 */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.animate-ripple {
+  animation: ripple 0.6s ease-out forwards;
+}
+
+.animate-ripple-delay {
+  animation: ripple 0.6s ease-out 0.15s forwards;
 }
 
 /* 大头针慢速弹跳 */
@@ -950,5 +1008,42 @@ const expandDrawer = () => {
 
 .animate-ping-slow {
   animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* 粒子动画 */
+.animate-particle-1 {
+  opacity: 0.9;
+}
+
+.animate-particle-2 {
+  opacity: 0.7;
+}
+
+.animate-particle-3 {
+  opacity: 0.5;
+}
+
+/* 淡入淡出过渡 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -20px);
+}
+
+/* 把手滑入滑出过渡 */
+.slide-handle-enter-active,
+.slide-handle-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-handle-enter-from,
+.slide-handle-leave-to {
+  opacity: 0;
+  transform: translateX(-100%) translateY(-50%);
 }
 </style>
